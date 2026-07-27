@@ -79,13 +79,7 @@ export const generateLessonPlan = async ({
         } catch(e) {}
     }
     
-    // We will still try to use the server API key via a proxy if running locally and no client key is provided
-    let useServerProxy = false;
-    if (!finalApiKey && process.env.NODE_ENV !== "production") {
-        useServerProxy = true; // might not work on vercel but works locally
-    }
-
-    if (!finalApiKey && !useServerProxy) {
+    if (!finalApiKey) {
         throw new Error("Vui lòng nhập Gemini API Key để tạo giáo án.");
     }
 
@@ -127,7 +121,7 @@ export const generateLessonPlan = async ({
             let data: any = null;
             const ai = new GoogleGenAI({ apiKey: finalApiKey });
             const response = await ai.models.generateContent({
-                model: 'gemini-2.5-flash',
+                model: 'gemini-2.5-pro',
                 contents: { parts },
                 config: {
                     systemInstruction: SYSTEM_PROMPT,
