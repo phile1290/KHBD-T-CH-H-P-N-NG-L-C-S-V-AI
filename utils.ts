@@ -154,9 +154,20 @@ export const exportToWord = (result: LessonPlanResponse, elementId: string) => {
     link.click();
     document.body.removeChild(link);
 };
+
 export const uploadFileToGeminiREST = async (file: File, apiKey: string): Promise<{ fileUri: string, mimeType: string, name: string }> => {
     let delay = 1000;
     let lastErr: any;
+    
+    let mimeType = file.type;
+    if (!mimeType) {
+        if (file.name.toLowerCase().endsWith('.pdf')) mimeType = 'application/pdf';
+        else if (file.name.toLowerCase().endsWith('.png')) mimeType = 'image/png';
+        else if (file.name.toLowerCase().endsWith('.jpg') || file.name.toLowerCase().endsWith('.jpeg')) mimeType = 'image/jpeg';
+        else mimeType = 'application/pdf';
+    }
+
+    const safeDisplayName = file.name.substring(0, 40).replace(/[^a-zA-Z0-9.\-_]/g, '_');
     
     for (let attempt = 1; attempt <= 3; attempt++) {
         try {
@@ -167,10 +178,10 @@ export const uploadFileToGeminiREST = async (file: File, apiKey: string): Promis
                     'X-Goog-Upload-Protocol': 'resumable',
                     'X-Goog-Upload-Command': 'start',
                     'X-Goog-Upload-Header-Content-Length': file.size.toString(),
-                    'X-Goog-Upload-Header-Content-Type': file.type || 'application/pdf',
+                    'X-Goog-Upload-Header-Content-Type': mimeType,
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ file: { display_name: file.name.replace(/[^a-zA-Z0-9.\-_]/g, '_') } })
+                body: JSON.stringify({ file: { display_name: safeDisplayName } })
             });
             
             if (!startRes.ok) {
@@ -193,9 +204,7 @@ export const uploadFileToGeminiREST = async (file: File, apiKey: string): Promis
                     method: 'POST',
                     headers: {
                         'X-Goog-Upload-Command': isFinal ? 'upload, finalize' : 'upload',
-                        'X-Goog-Upload-Offset': offset.toString(),
-                        'Content-Length': chunk.size.toString(),
-                        'Content-Type': file.type || 'application/pdf'
+                        'X-Goog-Upload-Offset': offset.toString()
                     },
                     body: chunk
                 });
@@ -209,7 +218,7 @@ export const uploadFileToGeminiREST = async (file: File, apiKey: string): Promis
                     const fileInfo = await uploadRes.json();
                     return {
                         fileUri: fileInfo.file.uri,
-                        mimeType: fileInfo.file.mimeType,
+                        mimeType: fileInfo.file.mimeType || mimeType,
                         name: fileInfo.file.name
                     };
                 }

@@ -143,15 +143,15 @@ const App: React.FC = () => {
     };
 
     return (
-        <div className="min-h-screen bg-gray-50 font-sans p-2 md:p-8" style={{ backgroundImage: 'url("data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiBvcGFjaXR5PSIwLjAzIj4KICA8ZyBmaWxsPSJub25lIiBzdHJva2U9IiMwMDAwMDAiIHN0cm9rZS13aWR0aD0iMS41Ij4KICAgIDwhLS0gQm9vayAtLT4KICAgIDxwYXRoIGQ9Ik0gMjAgNDAgTCA0MCAzMCBMIDYwIDQwIEwgNjAgNjAgTCA0MCA3MCBMIDIwIDYwIFoiIC8+CiAgICA8cGF0aCBkPSJNIDQwIDMwIEwgNDAgNzAiIC8+CiAgICA8IS0tIFBlbmNpbCAtLT4KICAgIDxwYXRoIGQ9Ik0gMTIwIDQwIEwgMTQwIDIwIEwgMTUwIDMwIEwgMTMwIDUwIFoiIC8+CiAgICA8cGF0aCBkPSJNIDEyMCA0MCBMIDExMCA0NSBMIDExNSAzNSBaIiAvPgogICAgPCEtLSBDYXAgLS0+CiAgICA8cGF0aCBkPSJNIDE0MCAxMjAgTCAxNjAgMTEwIEwgMTgwIDEyMCBMIDE2MCAxMzAgWiIgLz4KICAgIDxwYXRoIGQ9Ik0gMTQ1IDEyNSBMIDE0NSAxNDAgQSAxNSA1IDAgMCAwIDE3NSAxNDAgTCAxNzUgMTI1IiAvPgogICAgPCEtLSBTdGFyIC0tPgogICAgPHBhdGggZD0iTSA2MCAxNDAgTCA2NSAxNTAgTCA3NSAxNTAgTCA2NyAxNTcgTCA3MCAxNjcgTCA2MCAxNjAgTCA1MCAxNjcgTCA1MyAxNTcgTCA0NSAxNTAgTCA1NSAxNTAgWiIgLz4KICA8L2c+Cjwvc3ZnPg==")', backgroundRepeat: 'repeat' }}>
-            <header className="mb-6 flex flex-col md:flex-row items-center justify-between bg-white p-4 rounded-xl shadow-sm border border-gray-200 sticky top-0 z-20">
+        <div className="min-h-screen bg-slate-100/90 font-sans p-2 md:p-8" style={{ backgroundImage: 'url("data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQwIiBoZWlnaHQ9IjI0MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KICA8ZyBmaWxsPSJub25lIiBzdHJva2U9IiMwZDk0ODgiIHN0cm9rZS13aWR0aD0iMS4zIiBvcGFjaXR5PSIwLjA5Ij4KICAgIDwhLS0gQm9vayAtLT4KICAgIDxwYXRoIGQ9Ik0gMzAgNTAgTCA1NSAzOCBMIDgwIDUwIEwgODAgNzUgTCA1NSA2MyBMIDMwIDc1IFoiIC8+CiAgICA8cGF0aCBkPSJNIDU1IDM4IEwgNTUgNjMiIC8+CiAgICA8IS0tIEdyYWR1YXRpb24gQ2FwIC0tPgogICAgPHBhdGggZD0iTSAxNjAgNDUgTCAxOTAgMzIgTCAyMjAgNDUgTCAxOTAgNTggWiIgLz4KICAgIDxwYXRoIGQ9Ik0gMTcwIDUwIEwgMTcwIDY4IEEgMjAgOCAwIDAgMCAyMTAgNjggTCAyMTAgNTAiIC8+CiAgICA8cGF0aCBkPSJNIDIyMCA0NSBMIDIyMCA2NSIgLz4KICAgIDwhLS0gUGVuY2lsIC0tPgogICAgPHBhdGggZD0iTSAzNSAxNTAgTCA1NSAx3AgTCA2NyAxNDIgTCA0NyAxNjIgWiIgLz4KICAgIDxwYXRoIGQ9Ik0gMzUgMTUwIEwgMjcgMTU1IEwgMzIgMTQ1IFoiIC8+CiAgICA8IS0tIENvbXB1dGVyIFNjcmVlbiAtLT4KICAgIDxyZWN0IHg9IjE1MCIgeT0iMTMwIiB3aWR0aD0iNDUiIGhlaWdodD0iMzAiIHJ4PSIzIiAvPgogICAgPHBhdGggZD0iTSAxNjIgMTYwIEwgMTgzIDE2MCBNIDE3MiAxNjAgTCAxNzIgMTY2IE0gMTU4IDE2NiBMIDE4NyAxNjYiIC8+CiAgICA8IS0tIEFJIFNwYXJrbGUgLS0+CiAgICA8cGF0aCBkPSJNIDEwMCAxMTAgTCAxMDUgMTI1IEwgMTIwIDEzMCBMIDEwNSAxMzUgTCAxMDAgMTUwIEwgOTUgMTM1IEwgODAgMTMwIEwgOTUgMTI1IFoiIC8+CiAgICA8IS0tIENvbXBhc3MgLyBNYXRoIC0tPgogICAgPGNpcmNsZSBjeD0iMTAwIiBjeT0iNDAiIHI9IjEwIiAvPgogICAgPHBhdGggZD0iTSAxMDAgMzAgTCAxMDAgNTAgTSA5MCA0MCBMIDExMCA0MCIgLz4KICA8L2c+Cjwvc3ZnPg==")', backgroundRepeat: 'repeat', backgroundAttachment: 'fixed' }}>
+            <header className="mb-6 flex flex-col md:flex-row items-center justify-between bg-white/90 backdrop-blur-md p-4 rounded-xl shadow-md border border-teal-100 sticky top-0 z-20">
                 <div className="flex items-center gap-3 mb-3 md:mb-0">
-                    <div className="bg-teal-600 p-2 rounded-lg text-white">
+                    <div className="bg-teal-600 p-2 rounded-lg text-white shadow-sm">
                         <BookOpen size={24} />
                     </div>
                     <div>
-                        <h1 className="text-xl font-bold text-gray-800 uppercase">Kế hoạch bài dạy tích hợp năng lực số và AI</h1>
-                        <p className="text-xs text-gray-500">Ứng dụng được phát triển bởi thầy giáo Lê Văn Phi</p>
+                        <h1 className="text-xl font-bold text-gray-800 uppercase tracking-wide">Kế hoạch bài dạy tích hợp năng lực số và AI</h1>
+                        <p className="text-xs text-teal-700 font-medium">Ứng dụng được phát triển bởi thầy giáo Lê Văn Phi</p>
                     </div>
                 </div>
             </header>
@@ -159,7 +159,7 @@ const App: React.FC = () => {
             <main className="grid grid-cols-1 lg:grid-cols-12 gap-6">
                 {/* LEFT COLUMN: INPUTS */}
                 <div className="lg:col-span-4 space-y-6">
-                    <div className="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-gray-200">
+                    <div className="bg-white/90 backdrop-blur-md p-4 md:p-6 rounded-xl shadow-md border border-teal-100">
                         <h2 className="flex items-center gap-2 font-bold text-gray-700 mb-4">
                             <Settings size={20} /> THIẾT LẬP THÔNG SỐ
                         </h2>
@@ -358,10 +358,10 @@ const App: React.FC = () => {
 
                 {/* RIGHT COLUMN: PREVIEW */}
                 <div className="lg:col-span-8 overflow-hidden">
-                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 h-full flex flex-col min-h-[600px]">
-                        <div className="p-4 border-b border-gray-200 flex justify-between items-center bg-gray-50 rounded-t-xl sticky top-0 z-10">
+                    <div className="bg-white/90 backdrop-blur-md rounded-xl shadow-md border border-teal-100 h-full flex flex-col min-h-[600px]">
+                        <div className="p-4 border-b border-teal-100 flex justify-between items-center bg-teal-50/50 rounded-t-xl sticky top-0 z-10 backdrop-blur-md">
                             <h2 className="font-bold text-gray-700 flex items-center gap-2">
-                                <FileText size={20} /> Xem trước
+                                <FileText size={20} className="text-teal-600" /> Xem trước Kế hoạch bài dạy
                             </h2>
                             {result && (
                                 <button onClick={() => exportToWord(result, 'lesson-preview-content')} className="flex items-center gap-2 px-3 py-1.5 bg-green-600 text-white rounded hover:bg-green-700 text-sm font-medium transition-colors shadow-sm">
@@ -369,7 +369,7 @@ const App: React.FC = () => {
                                 </button>
                             )}
                         </div>
-                        <div className="p-4 md:p-8 overflow-auto flex-1 bg-white">
+                        <div className="p-4 md:p-8 overflow-auto flex-1 bg-white/95">
                             {!result ? (
                                 <div className="h-full flex flex-col items-center justify-center text-gray-400 opacity-50">
                                     <FileText size={64} className="mb-4 text-gray-300" />

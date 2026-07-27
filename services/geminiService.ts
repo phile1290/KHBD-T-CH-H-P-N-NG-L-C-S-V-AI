@@ -55,20 +55,22 @@ export const generateLessonPlan = async ({
         ${integrationInstruction}
         - Nếu có Tài liệu tham khảo, hãy dùng nó.
         
-        **NHẮC LẠI YÊU CẦU BẮT BUỘC (V46):**
-        1. **CẤU TRÚC:** Đủ 4 hoạt động.
-        2. **KPI GẠCH ĐẦU DÒNG (Không tính hình ảnh và tích hợp):**
-            - Mở đầu >= 4.
-            - KT Mới >= 8.
-            - Luyện tập >= 10.
-            - Vận dụng >= 4.
-            - BẮT BUỘC: Cột Giáo viên có bao nhiêu gạch đầu dòng thì cột Học sinh phải có đúng bấy nhiêu gạch đầu dòng tương ứng (Tỷ lệ 1:1).
+        **NHẮC LẠI YÊU CẦU BẮT BUỘC:**
+        1. **CẤU TRÚC:** Đủ 4 hoạt động theo trình tự chuẩn sư phạm.
+        2. **KPI GẠCH ĐẦU DÒNG VÀ NGUYÊN TẮC 1:1 NGANG HÀNG (Không tính hình ảnh và tích hợp):**
+            - Mở đầu >= 4 gạch đầu dòng.
+            - KT Mới >= 8 gạch đầu dòng.
+            - Luyện tập >= 10 gạch đầu dòng.
+            - Vận dụng >= 4 gạch đầu dòng.
+            - BẮT BUỘC NGUYÊN TẮC 1:1 NGANG HÀNG: Cột "Hoạt động của Giáo viên" có bao nhiêu gạch đầu dòng thì cột "Hoạt động của Học sinh" BẮT BUỘC có đúng bấy nhiêu gạch đầu dòng đáp lại tương ứng (Tỷ lệ 1:1 tuyệt đối).
         3. **HÌNH ẢNH:**
             - Tối thiểu 3 hình/tiết.
             - CHỈ CÓ Ở CỘT GIÁO VIÊN.
             - Không dùng gạch đầu dòng.
             - Sử dụng cú pháp [Gợi ý hình ảnh: <Mô tả chi tiết bằng tiếng Việt>] để gợi ý cho giáo viên.
-        4. **THỜI GIAN:** BẮT BUỘC tổng thời gian của 4 hoạt động phải bằng chính xác ${totalDuration} phút. TUYỆT ĐỐI KHÔNG mặc định phân bổ kiểu 5-10-15-5 hay chia đều. Bạn PHẢI TỰ ĐÁNH GIÁ ĐỘ KHÓ VÀ DUNG LƯỢNG NỘI DUNG để phân bổ thời gian một cách LINH HOẠT VÀ KHOA HỌC NHẤT (ví dụ: 3-12-16-4, 6-14-10-5, v.v.). Đảm bảo tổng thời gian cộng lại bằng đúng số người dùng nhập.
+        4. **THỜI GIAN LINH HOẠT VÀ CHÍNH XÁC:**
+            - Dựa trên độ khó và lượng nội dung thực tế của bài học, hãy phân bổ thời gian cho 4 hoạt động một cách LINH HOẠT, KHOA HỌC và THỰC TẾ NHẤT (ví dụ đối với tiết ${totalDuration} phút: Mở đầu 3-5 phút, KT mới 12-16 phút, Luyện tập 10-15 phút, Vận dụng 3-5 phút).
+            - BẮT BUỘC: Tổng số phút của cả 4 hoạt động cộng lại PHẢI BẰNG ĐÚNG CHÍNH XÁC ${totalDuration} phút. TUYỆT ĐỐI KHÔNG phân bổ kiểu mặc định hay chia đều.
     `;
 
     let finalApiKey = apiKey;
@@ -90,11 +92,30 @@ export const generateLessonPlan = async ({
         if (file.size > 100 * 1024 * 1024) {
             throw new Error(`Kích thước file ${file.name} vượt quá 100MB.`);
         }
-        const uploaded = await uploadFileToGeminiREST(file, finalApiKey);
-        uploadedFileNames.push(uploaded.name);
-        parts.push({
-            fileData: { fileUri: uploaded.fileUri, mimeType: uploaded.mimeType }
-        });
+
+        let mimeType = file.type;
+        if (!mimeType) {
+            if (file.name.toLowerCase().endsWith('.pdf')) mimeType = 'application/pdf';
+            else if (file.name.toLowerCase().endsWith('.png')) mimeType = 'image/png';
+            else if (file.name.toLowerCase().endsWith('.jpg') || file.name.toLowerCase().endsWith('.jpeg')) mimeType = 'image/jpeg';
+            else mimeType = 'application/pdf';
+        }
+
+        if (file.size <= 20 * 1024 * 1024) {
+            const base64Data = await fileToBase64(file);
+            parts.push({
+                inlineData: {
+                    data: base64Data,
+                    mimeType: mimeType
+                }
+            });
+        } else {
+            const uploaded = await uploadFileToGeminiREST(file, finalApiKey);
+            uploadedFileNames.push(uploaded.name);
+            parts.push({
+                fileData: { fileUri: uploaded.fileUri, mimeType: uploaded.mimeType }
+            });
+        }
     };
     
     if (sourceType === 'pdf' && pdfFile) {
@@ -115,7 +136,7 @@ export const generateLessonPlan = async ({
     parts.push({ text: userPrompt });
 
     try {
-        const modelsToTry = ['gemini-3.6-flash', 'gemini-2.5-flash', 'gemini-1.5-flash'];
+        const modelsToTry = ['gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-1.5-flash'];
         let delay = 1000;
         const maxAttempts = 6;
 
