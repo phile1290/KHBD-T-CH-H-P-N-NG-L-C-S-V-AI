@@ -125,37 +125,17 @@ export const generateLessonPlan = async ({
         for (let i = 0; i <= 5; i++) {
         try {
             let data: any = null;
-            if (finalApiKey) {
-                // Client-side SDK call
-                const ai = new GoogleGenAI({ apiKey: finalApiKey });
-                const response = await ai.models.generateContent({
-                    model: 'gemini-2.5-flash',
-                    contents: { parts },
-                    config: {
-                        systemInstruction: SYSTEM_PROMPT,
-                        responseMimeType: "application/json",
-                        temperature: 0.7
-                    }
-                });
-                data = { text: response.text };
-            } else {
-                // Fallback to proxy (only works if backend is running, i.e. not Vercel static)
-                // We will send inlineData to backend. Vercel has 4.5MB limit, so this is just a fallback.
-                const response = await fetch('/api/generate-inline', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        parts,
-                        systemInstruction: SYSTEM_PROMPT,
-                        apiKey: finalApiKey
-                    })
-                });
-                if (!response.ok) {
-                    const text = await response.text();
-                    throw new Error("Lỗi máy chủ proxy: " + text);
+            const ai = new GoogleGenAI({ apiKey: finalApiKey });
+            const response = await ai.models.generateContent({
+                model: 'gemini-2.5-flash',
+                contents: { parts },
+                config: {
+                    systemInstruction: SYSTEM_PROMPT,
+                    responseMimeType: "application/json",
+                    temperature: 0.7
                 }
-                data = await response.json();
-            }
+            });
+            data = { text: response.text };
 
             if (!data.text) throw new Error("Empty response from AI");
             return sanitizeAndParseJSON(data.text);

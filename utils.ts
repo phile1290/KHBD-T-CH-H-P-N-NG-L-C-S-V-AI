@@ -124,8 +124,9 @@ export const exportToWord = (result: LessonPlanResponse, elementId: string) => {
     if (!contentElement) return;
 
     const contentHTML = contentElement.innerHTML;
-    const safeSubject = "KHBD";
-    const fileName = `KHBD_Export.doc`;
+    const lessonTitle = result.lesson_full_title || "Ke_Hoach_Bai_Day";
+    const safeName = lessonTitle.replace(/[\/\\?%*:|"<>]/g, '-').trim();
+    const fileName = `${safeName}.doc`;
 
     const header = `
         <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
@@ -154,48 +155,76 @@ export const exportToWord = (result: LessonPlanResponse, elementId: string) => {
     document.body.removeChild(link);
 };
 export const uploadFileToGeminiREST = async (file: File, apiKey: string): Promise<{ fileUri: string, mimeType: string, name: string }> => {
-    // 1. Start Resumable Upload
-    const startRes = await fetch(`https://generativelanguage.googleapis.com/upload/v1beta/files?key=${apiKey}`, {
-        method: 'POST',
-        headers: {
-            'X-Goog-Upload-Protocol': 'resumable',
-            'X-Goog-Upload-Command': 'start',
-            'X-Goog-Upload-Header-Content-Length': file.size.toString(),
-            'X-Goog-Upload-Header-Content-Type': file.type || 'application/pdf',
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ file: { display_name: file.name } })
-    });
+    let delay = 1000;
+    let lastErr: any;
     
-    if (!startRes.ok) {
-        const errText = await startRes.text();
-        throw new Error("Lỗi khi khởi tạo upload: " + errText);
+    for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+            // 1. Start Resumable Upload
+            const startRes = await fetch(`https://generativelanguage.googleapis.com/upload/v1beta/files?key=${apiKey}`, {
+                method: 'POST',
+                headers: {
+                    'X-Goog-Upload-Protocol': 'resumable',
+                    'X-Goog-Upload-Command': 'start',
+                    'X-Goog-Upload-Header-Content-Length': file.size.toString(),
+                    'X-Goog-Upload-Header-Content-Type': file.type || 'application/pdf',
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ file: { display_name: file.name } })
+            });
+            
+            if (!startRes.ok) {
+                const errText = await startRes.text();
+                throw new Error("Lỗi khởi tạo upload: " + errText);
+            }
+            
+            const uploadUrl = startRes.headers.get('x-goog-upload-url');
+            if (!uploadUrl) throw new Error("Không nhận được URL upload từ Gemini");
+            
+            // 2. Chunked Upload Data
+            const chunkSize = 8 * 1024 * 1024; // 8MB
+            let offset = 0;
+            
+            while (offset < file.size) {
+                const chunk = file.slice(offset, offset + chunkSize);
+                const isFinal = offset + chunk.size >= file.size;
+                
+                const uploadRes = await fetch(uploadUrl, {
+                    method: 'POST',
+                    headers: {
+                        'X-Goog-Upload-Command': isFinal ? 'upload, finalize' : 'upload',
+                        'X-Goog-Upload-Offset': offset.toString(),
+                        'Content-Length': chunk.size.toString(),
+                        'Content-Type': file.type || 'application/pdf'
+                    },
+                    body: chunk
+                });
+                
+                if (!uploadRes.ok) {
+                    const errText = await uploadRes.text();
+                    throw new Error("Lỗi tải dữ liệu lên Gemini: " + errText);
+                }
+                
+                if (isFinal) {
+                    const fileInfo = await uploadRes.json();
+                    return {
+                        fileUri: fileInfo.file.uri,
+                        mimeType: fileInfo.file.mimeType,
+                        name: fileInfo.file.name
+                    };
+                }
+                
+                offset += chunk.size;
+            }
+        } catch (err: any) {
+            lastErr = err;
+            console.error("Upload error attempt " + attempt, err);
+            if (attempt < 3) {
+                await new Promise(res => setTimeout(res, delay));
+                delay *= 2;
+            }
+        }
     }
     
-    const uploadUrl = startRes.headers.get('x-goog-upload-url');
-    if (!uploadUrl) throw new Error("Không nhận được URL upload từ Gemini");
-    
-    // 2. Upload Data
-    const uploadRes = await fetch(uploadUrl, {
-        method: 'POST',
-        headers: {
-            'X-Goog-Upload-Command': 'upload, finalize',
-            'X-Goog-Upload-Offset': '0',
-            'Content-Length': file.size.toString(),
-            'Content-Type': file.type || 'application/pdf'
-        },
-        body: file
-    });
-    
-    if (!uploadRes.ok) {
-        const errText = await uploadRes.text();
-        throw new Error("Lỗi khi tải dữ liệu lên Gemini: " + errText);
-    }
-    
-    const fileInfo = await uploadRes.json();
-    return {
-        fileUri: fileInfo.file.uri,
-        mimeType: fileInfo.file.mimeType,
-        name: fileInfo.file.name
-    };
+    throw new Error(lastErr?.message || "Không thể tải file lên Gemini sau nhiều lần thử.");
 };
