@@ -1,4 +1,5 @@
 import fs from "fs";
+import os from "os";
 import express from "express";
 import path from "path";
 import { createServer as createViteServer } from "vite";
@@ -7,7 +8,7 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-const tempDir = path.join(process.cwd(), 'tmp_uploads');
+const tempDir = path.join(os.tmpdir(), 'tmp_uploads');
 if (!fs.existsSync(tempDir)) {
     fs.mkdirSync(tempDir, { recursive: true });
 }
