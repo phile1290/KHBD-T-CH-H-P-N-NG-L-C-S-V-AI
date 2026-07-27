@@ -54,7 +54,7 @@ export const sanitizeAndParseJSON = (text: string): LessonPlanResponse => {
         
         return JSON.parse(jsonString);
     } catch (e) {
-        console.error("JSON Parse Error Raw Text:\n" + text);
+        console.error("JSON Parse Error Raw Text:" + text);
         throw e;
     }
 };
@@ -62,20 +62,20 @@ export const sanitizeAndParseJSON = (text: string): LessonPlanResponse => {
 export const cleanPrefix = (text: string | null | undefined): string => {
     if (!text) return "";
     let cleaned = text.replace(/^[-–\*\s]*(GV|Giáo viên|HS|Học sinh|Thầy|Cô)\s*[:\.]\s*/gim, '');
-    cleaned = cleaned.replace(/\n[-–\*\s]*(GV|Giáo viên|HS|Học sinh|Thầy|Cô)\s*[:\.]\s*/gim, '\n');
+    cleaned = cleaned.replace(/[-–\*\s]*(GV|Giáo viên|HS|Học sinh|Thầy|Cô)\s*[:\.]\s*/gim, '');
     return cleaned;
 };
 
 export const alignContent = (teacherText: string, studentText: string) => {
     let processedTeacher = (teacherText || '')
-        .replace(/(\[Gợi ý hình ảnh:|Gợi ý hình ảnh:|\(Gợi ý hình ảnh:)/gi, '\n$1')
-        .replace(/(\[Tích hợp\]:|Tích hợp:)/gi, '\n$1');
+        .replace(/(\[Gợi ý hình ảnh:|Gợi ý hình ảnh:|\(Gợi ý hình ảnh:)/gi, '$1')
+        .replace(/(\[Tích hợp\]:|Tích hợp:)/gi, '$1');
         
     let processedStudent = (studentText || '')
-        .replace(/(\[Tích hợp\]:|Tích hợp:)/gi, '\n$1');
+        .replace(/(\[Tích hợp\]:|Tích hợp:)/gi, '$1');
 
-    const tLines = cleanPrefix(processedTeacher).split('\n').map(l => l.trim()).filter(Boolean);
-    const sLines = cleanPrefix(processedStudent).split('\n').map(l => l.trim()).filter(Boolean);
+    const tLines = cleanPrefix(processedTeacher).split('').map(l => l.trim()).filter(Boolean);
+    const sLines = cleanPrefix(processedStudent).split('').map(l => l.trim()).filter(Boolean);
 
     const alignedRows = [];
     let tIndex = 0;
@@ -152,4 +152,50 @@ export const exportToWord = (result: LessonPlanResponse, elementId: string) => {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+};
+export const uploadFileToGeminiREST = async (file: File, apiKey: string): Promise<{ fileUri: string, mimeType: string, name: string }> => {
+    // 1. Start Resumable Upload
+    const startRes = await fetch(`https://generativelanguage.googleapis.com/upload/v1beta/files?key=${apiKey}`, {
+        method: 'POST',
+        headers: {
+            'X-Goog-Upload-Protocol': 'resumable',
+            'X-Goog-Upload-Command': 'start',
+            'X-Goog-Upload-Header-Content-Length': file.size.toString(),
+            'X-Goog-Upload-Header-Content-Type': file.type || 'application/pdf',
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ file: { display_name: file.name } })
+    });
+    
+    if (!startRes.ok) {
+        const errText = await startRes.text();
+        throw new Error("Lỗi khi khởi tạo upload: " + errText);
+    }
+    
+    const uploadUrl = startRes.headers.get('x-goog-upload-url');
+    if (!uploadUrl) throw new Error("Không nhận được URL upload từ Gemini");
+    
+    // 2. Upload Data
+    const uploadRes = await fetch(uploadUrl, {
+        method: 'POST',
+        headers: {
+            'X-Goog-Upload-Command': 'upload, finalize',
+            'X-Goog-Upload-Offset': '0',
+            'Content-Length': file.size.toString(),
+            'Content-Type': file.type || 'application/pdf'
+        },
+        body: file
+    });
+    
+    if (!uploadRes.ok) {
+        const errText = await uploadRes.text();
+        throw new Error("Lỗi khi tải dữ liệu lên Gemini: " + errText);
+    }
+    
+    const fileInfo = await uploadRes.json();
+    return {
+        fileUri: fileInfo.file.uri,
+        mimeType: fileInfo.file.mimeType,
+        name: fileInfo.file.name
+    };
 };

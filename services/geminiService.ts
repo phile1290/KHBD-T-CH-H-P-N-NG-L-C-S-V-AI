@@ -1,7 +1,7 @@
 import { GoogleGenAI, Part } from "@google/genai";
 import { SYSTEM_PROMPT } from "../constants";
 import { ImageFile, InputState, LessonPlanResponse, SourceType } from "../types";
-import { fileToBase64, sanitizeAndParseJSON } from "../utils";
+import { fileToBase64, sanitizeAndParseJSON, uploadFileToGeminiREST } from "../utils";
 
 interface GenerateParams {
     inputData: InputState;
@@ -90,42 +90,39 @@ export const generateLessonPlan = async ({
     }
 
     const parts: any[] = [];
+    let uploadedFileNames: string[] = [];
+
+    const uploadAndPush = async (file: File) => {
+        if (file.size > 100 * 1024 * 1024) {
+            throw new Error(`Kích thước file ${file.name} vượt quá 100MB.`);
+        }
+        const uploaded = await uploadFileToGeminiREST(file, finalApiKey);
+        uploadedFileNames.push(uploaded.name);
+        parts.push({
+            fileData: { fileUri: uploaded.fileUri, mimeType: uploaded.mimeType }
+        });
+    };
     
     if (sourceType === 'pdf' && pdfFile) {
-        // Validate size for inlineData (limit is 20MB)
-        if (pdfFile.size > 20 * 1024 * 1024) {
-            throw new Error("Kích thước file PDF quá lớn (giới hạn 20MB). Vui lòng nén file.");
-        }
-        const base64 = await fileToBase64(pdfFile);
-        parts.push({
-            inlineData: { data: base64, mimeType: "application/pdf" }
-        });
+        await uploadAndPush(pdfFile);
     } else if (sourceType === 'image' && images.length > 0) {
         for (const img of images) {
-            const base64 = await fileToBase64(img.file);
-            parts.push({
-                inlineData: { data: base64, mimeType: img.file.type }
-            });
+            await uploadAndPush(img.file);
         }
     }
 
     if (referencePdfs && referencePdfs.length > 0) {
         parts.push({ text: "DƯỚI ĐÂY LÀ (CÁC) FILE PDF TÀI LIỆU THAM KHẢO (SỬ DỤNG LÀM KHUNG CƠ SỞ CHO NỘI DUNG TÍCH HỢP):" });
         for (const ref of referencePdfs) {
-            if (ref.size > 20 * 1024 * 1024) {
-                throw new Error("Kích thước file tài liệu tham khảo quá lớn (giới hạn 20MB).");
-            }
-            const base64 = await fileToBase64(ref);
-            parts.push({
-                inlineData: { data: base64, mimeType: "application/pdf" }
-            });
+            await uploadAndPush(ref);
         }
     }
 
     parts.push({ text: userPrompt });
 
-    let delay = 1000;
-    for (let i = 0; i <= 5; i++) {
+    try {
+        let delay = 1000;
+        for (let i = 0; i <= 5; i++) {
         try {
             let data: any = null;
             if (finalApiKey) {
@@ -181,5 +178,17 @@ export const generateLessonPlan = async ({
             delay *= 2; 
         }
     }
-    throw new Error("Unknown error occurred");
+        throw new Error("Unknown error occurred");
+    } finally {
+        if (uploadedFileNames.length > 0 && finalApiKey) {
+            try {
+                const ai = new GoogleGenAI({ apiKey: finalApiKey });
+                for (const name of uploadedFileNames) {
+                    await ai.files.delete({ name }).catch(() => {});
+                }
+            } catch(e) {
+                console.error("Lỗi khi xoá file:", e);
+            }
+        }
+    }
 };

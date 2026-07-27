@@ -8,10 +8,7 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-const tempDir = path.join(os.tmpdir(), 'tmp_uploads');
-if (!fs.existsSync(tempDir)) {
-    fs.mkdirSync(tempDir, { recursive: true });
-}
+
 
 async function startServer() {
   const app = express();
@@ -20,18 +17,7 @@ async function startServer() {
   app.use(express.json({ limit: "50mb" }));
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
-  app.post("/api/upload-chunk", (req, res) => {
-      try {
-          const { fileId, data } = req.body;
-          if (!fileId || typeof data !== 'string') return res.status(400).json({ error: "Invalid data" });
-          const filePath = path.join(tempDir, fileId);
-          const buffer = Buffer.from(data, 'base64');
-          fs.appendFileSync(filePath, buffer);
-          res.json({ success: true });
-      } catch(err: any) {
-          res.status(500).json({ error: err.message });
-      }
-  });
+
 
 
 
