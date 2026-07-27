@@ -140,7 +140,10 @@ export const generateLessonPlan = async ({
                 err.message.toLowerCase().includes('quota') ||
                 err.message.toLowerCase().includes('503') ||
                 err.message.toLowerCase().includes('429') ||
-                err.message.toLowerCase().includes('fetch')
+                err.message.toLowerCase().includes('fetch') ||
+                err.message.toLowerCase().includes('json') ||
+                err.message.toLowerCase().includes('parse') ||
+                err.message.toLowerCase().includes('định dạng')
             );
             
             if (i === 5 || !isRetryable) {

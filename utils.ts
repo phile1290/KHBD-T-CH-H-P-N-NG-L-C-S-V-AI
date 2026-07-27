@@ -74,8 +74,8 @@ export const alignContent = (teacherText: string, studentText: string) => {
     let processedStudent = (studentText || '')
         .replace(/(\[Tích hợp\]:|Tích hợp:)/gi, '$1');
 
-    const tLines = cleanPrefix(processedTeacher).split('').map(l => l.trim()).filter(Boolean);
-    const sLines = cleanPrefix(processedStudent).split('').map(l => l.trim()).filter(Boolean);
+    const tLines = cleanPrefix(processedTeacher).split('\n').map(l => l.trim()).filter(Boolean);
+    const sLines = cleanPrefix(processedStudent).split('\n').map(l => l.trim()).filter(Boolean);
 
     const alignedRows = [];
     let tIndex = 0;
@@ -170,7 +170,7 @@ export const uploadFileToGeminiREST = async (file: File, apiKey: string): Promis
                     'X-Goog-Upload-Header-Content-Type': file.type || 'application/pdf',
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ file: { display_name: file.name } })
+                body: JSON.stringify({ file: { display_name: file.name.replace(/[^a-zA-Z0-9.\-_]/g, '_') } })
             });
             
             if (!startRes.ok) {
