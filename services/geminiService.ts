@@ -115,47 +115,61 @@ export const generateLessonPlan = async ({
     parts.push({ text: userPrompt });
 
     try {
+        const modelsToTry = ['gemini-3.6-flash', 'gemini-2.5-flash', 'gemini-1.5-flash'];
         let delay = 1000;
-        for (let i = 0; i <= 5; i++) {
-        try {
-            let data: any = null;
-            const ai = new GoogleGenAI({ apiKey: finalApiKey });
-            const response = await ai.models.generateContent({
-                model: 'gemini-2.5-pro',
-                contents: { parts },
-                config: {
-                    systemInstruction: SYSTEM_PROMPT,
-                    responseMimeType: "application/json",
-                    temperature: 0.7
-                }
-            });
-            data = { text: response.text };
+        const maxAttempts = 6;
 
-            if (!data.text) throw new Error("Empty response from AI");
-            return sanitizeAndParseJSON(data.text);
-        } catch (err: any) {
-            console.error("Gemini API Error attempt " + i, err);
-            
-            const isRetryable = err.message && (
-                err.message.toLowerCase().includes('quota') ||
-                err.message.toLowerCase().includes('503') ||
-                err.message.toLowerCase().includes('429') ||
-                err.message.toLowerCase().includes('fetch') ||
-                err.message.toLowerCase().includes('json') ||
-                err.message.toLowerCase().includes('parse') ||
-                err.message.toLowerCase().includes('định dạng')
-            );
-            
-            if (i === 5 || !isRetryable) {
-                if (isRetryable) throw new Error("Hệ thống quá tải (Quota/Busy), vui lòng thử lại sau.");
-                throw new Error(err.message || "Lỗi không xác định");
+        for (let i = 0; i < maxAttempts; i++) {
+            const currentModel = modelsToTry[i % modelsToTry.length];
+            try {
+                const ai = new GoogleGenAI({
+                    apiKey: finalApiKey,
+                    httpOptions: {
+                        headers: {
+                            'User-Agent': 'aistudio-build'
+                        }
+                    }
+                });
+                const response = await ai.models.generateContent({
+                    model: currentModel,
+                    contents: { parts },
+                    config: {
+                        systemInstruction: SYSTEM_PROMPT,
+                        responseMimeType: "application/json",
+                        temperature: 0.7
+                    }
+                });
+                const text = response.text;
+
+                if (!text) throw new Error("AI trả về kết quả rỗng.");
+                return sanitizeAndParseJSON(text);
+            } catch (err: any) {
+                console.error(`Gemini API Error (attempt ${i + 1}/${maxAttempts}, model ${currentModel}):`, err);
+
+                const errMsg = err.message ? String(err.message).toLowerCase() : '';
+                const isRetryable = (
+                    errMsg.includes('quota') ||
+                    errMsg.includes('503') ||
+                    errMsg.includes('429') ||
+                    errMsg.includes('resource_exhausted') ||
+                    errMsg.includes('fetch') ||
+                    errMsg.includes('json') ||
+                    errMsg.includes('parse') ||
+                    errMsg.includes('định dạng')
+                );
+
+                if (i === maxAttempts - 1 || !isRetryable) {
+                    if (isRetryable) {
+                        throw new Error("Hệ thống quá tải hoặc API Key đã vượt giới hạn lượt gọi (Quota/429). Vui lòng đợi 30-60 giây rồi nhấn thử lại.");
+                    }
+                    throw new Error(err.message || "Lỗi không xác định khi gọi AI.");
+                }
+
+                await new Promise(resolve => setTimeout(resolve, delay));
+                delay *= 1.5;
             }
-            
-            await new Promise(resolve => setTimeout(resolve, delay));
-            delay *= 2; 
         }
-    }
-        throw new Error("Unknown error occurred");
+        throw new Error("Không thể kết nối với AI sau nhiều lần thử.");
     } finally {
         if (uploadedFileNames.length > 0 && finalApiKey) {
             try {
