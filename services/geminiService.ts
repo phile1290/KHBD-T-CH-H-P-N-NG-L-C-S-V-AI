@@ -1,4 +1,4 @@
-import { Part } from "@google/genai";
+import { GoogleGenAI, Part } from "@google/genai";
 import { SYSTEM_PROMPT } from "../constants";
 import { ImageFile, InputState, LessonPlanResponse, SourceType } from "../types";
 import { fileToBase64, sanitizeAndParseJSON } from "../utils";
@@ -21,56 +21,7 @@ export const generateLessonPlan = async ({
     apiKey
 }: GenerateParams): Promise<LessonPlanResponse> => {
     
-    // Chunk upload helper
-    const uploadFileInChunks = async (file: File): Promise<string> => {
-        const fileId = Math.random().toString(36).substring(2, 15) + Date.now().toString();
-        const chunkSize = 1024 * 1024 * 2; // 2MB
-        const totalChunks = Math.ceil(file.size / chunkSize);
-
-        for (let i = 0; i < totalChunks; i++) {
-            const chunk = file.slice(i * chunkSize, (i + 1) * chunkSize);
-            const base64Chunk = await new Promise<string>((resolve) => {
-                const reader = new FileReader();
-                reader.readAsDataURL(chunk);
-                reader.onload = () => resolve((reader.result as string).split(',')[1]);
-            });
-
-            const res = await fetch('/api/upload-chunk', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    fileId,
-                    chunkIndex: i,
-                    totalChunks,
-                    data: base64Chunk
-                })
-            });
-            if (!res.ok) throw new Error(`Lỗi khi tải lên file: ${file.name}`);
-        }
-        return fileId;
-    };
-
-    let mainFileId: string | null = null;
-    let mainImages: { fileId: string; mimeType: string }[] = [];
-    let referenceFileIds: string[] = [];
-
-    // 1. Upload Main Source
-    if (sourceType === 'image') {
-        for (const img of images) {
-            const fileId = await uploadFileInChunks(img.file);
-            mainImages.push({ fileId, mimeType: img.file.type });
-        }
-    } else if (sourceType === 'pdf' && pdfFile) {
-        mainFileId = await uploadFileInChunks(pdfFile);
-    }
-
-    // 2. Upload Reference
-    if (referencePdfs && referencePdfs.length > 0) {
-        for (const file of referencePdfs) {
-            const fileId = await uploadFileInChunks(file);
-            referenceFileIds.push(fileId);
-        }
-    }
+    
 
     const numPeriods = parseInt(inputData.periods, 10);
     const totalDuration = parseInt(inputData.duration, 10) || 35;
@@ -120,39 +71,95 @@ export const generateLessonPlan = async ({
         4. **THỜI GIAN:** BẮT BUỘC tổng thời gian của 4 hoạt động phải bằng chính xác ${totalDuration} phút. TUYỆT ĐỐI KHÔNG mặc định phân bổ kiểu 5-10-15-5 hay chia đều. Bạn PHẢI TỰ ĐÁNH GIÁ ĐỘ KHÓ VÀ DUNG LƯỢNG NỘI DUNG để phân bổ thời gian một cách LINH HOẠT VÀ KHOA HỌC NHẤT (ví dụ: 3-12-16-4, 6-14-10-5, v.v.). Đảm bảo tổng thời gian cộng lại bằng đúng số người dùng nhập.
     `;
 
-    // Send payload to backend
+    let finalApiKey = apiKey;
+
+    if (!finalApiKey) {
+        try {
+            finalApiKey = (import.meta as any).env?.VITE_GEMINI_API_KEY || "";
+        } catch(e) {}
+    }
+    
+    // We will still try to use the server API key via a proxy if running locally and no client key is provided
+    let useServerProxy = false;
+    if (!finalApiKey && process.env.NODE_ENV !== "production") {
+        useServerProxy = true; // might not work on vercel but works locally
+    }
+
+    if (!finalApiKey && !useServerProxy) {
+        throw new Error("Vui lòng nhập Gemini API Key để tạo giáo án.");
+    }
+
+    const parts: any[] = [];
+    
+    if (sourceType === 'pdf' && pdfFile) {
+        // Validate size for inlineData (limit is 20MB)
+        if (pdfFile.size > 20 * 1024 * 1024) {
+            throw new Error("Kích thước file PDF quá lớn (giới hạn 20MB). Vui lòng nén file.");
+        }
+        const base64 = await fileToBase64(pdfFile);
+        parts.push({
+            inlineData: { data: base64, mimeType: "application/pdf" }
+        });
+    } else if (sourceType === 'image' && images.length > 0) {
+        for (const img of images) {
+            const base64 = await fileToBase64(img.file);
+            parts.push({
+                inlineData: { data: base64, mimeType: img.file.type }
+            });
+        }
+    }
+
+    if (referencePdfs && referencePdfs.length > 0) {
+        parts.push({ text: "DƯỚI ĐÂY LÀ (CÁC) FILE PDF TÀI LIỆU THAM KHẢO (SỬ DỤNG LÀM KHUNG CƠ SỞ CHO NỘI DUNG TÍCH HỢP):" });
+        for (const ref of referencePdfs) {
+            if (ref.size > 20 * 1024 * 1024) {
+                throw new Error("Kích thước file tài liệu tham khảo quá lớn (giới hạn 20MB).");
+            }
+            const base64 = await fileToBase64(ref);
+            parts.push({
+                inlineData: { data: base64, mimeType: "application/pdf" }
+            });
+        }
+    }
+
+    parts.push({ text: userPrompt });
+
     let delay = 1000;
     for (let i = 0; i <= 5; i++) {
         try {
-            const response = await fetch('/api/generate', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    userPrompt,
-                    sourceType,
-                    mainFileId,
-                    mainImages,
-                    referenceFileIds,
-                    systemInstruction: SYSTEM_PROMPT,
-                    apiKey
-                })
-            });
-
-            if (!response.ok) {
-                const contentType = response.headers.get("content-type");
-                if (contentType && contentType.indexOf("application/json") !== -1) {
-                    const errData = await response.json();
-                    throw new Error(errData.error || 'Server responded with an error');
-                } else {
-                    const text = await response.text();
-                    if (response.status === 413 || text.includes('PayloadTooLargeError') || text.includes('413')) {
-                         throw new Error("Kích thước file tải lên quá lớn. Vui lòng giảm dung lượng file hoặc sử dụng ít file hơn (giới hạn 100MB).");
+            let data: any = null;
+            if (finalApiKey) {
+                // Client-side SDK call
+                const ai = new GoogleGenAI({ apiKey: finalApiKey });
+                const response = await ai.models.generateContent({
+                    model: 'gemini-2.5-flash',
+                    contents: { parts },
+                    config: {
+                        systemInstruction: SYSTEM_PROMPT,
+                        responseMimeType: "application/json",
+                        temperature: 0.7
                     }
-                    throw new Error(`Lỗi máy chủ (${response.status}): Không thể xử lý yêu cầu.`);
+                });
+                data = { text: response.text };
+            } else {
+                // Fallback to proxy (only works if backend is running, i.e. not Vercel static)
+                // We will send inlineData to backend. Vercel has 4.5MB limit, so this is just a fallback.
+                const response = await fetch('/api/generate-inline', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        parts,
+                        systemInstruction: SYSTEM_PROMPT,
+                        apiKey: finalApiKey
+                    })
+                });
+                if (!response.ok) {
+                    const text = await response.text();
+                    throw new Error("Lỗi máy chủ proxy: " + text);
                 }
+                data = await response.json();
             }
 
-            const data = await response.json();
             if (!data.text) throw new Error("Empty response from AI");
             return sanitizeAndParseJSON(data.text);
         } catch (err: any) {
@@ -167,7 +174,7 @@ export const generateLessonPlan = async ({
             
             if (i === 5 || !isRetryable) {
                 if (isRetryable) throw new Error("Hệ thống quá tải (Quota/Busy), vui lòng thử lại sau.");
-                throw err;
+                throw new Error(err.message || "Lỗi không xác định");
             }
             
             await new Promise(resolve => setTimeout(resolve, delay));
